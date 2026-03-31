@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>專屬保單彙總書</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", Arial, sans-serif;
+      background: linear-gradient(180deg, #e8edf3 0%, #d7dee8 100%);
+      color: #111827;
+    }
+
+    .wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 16px 40px;
+    }
+
+    .header-card {
+      width: 100%;
+      max-width: 1400px;
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: white;
+      border-radius: 24px;
+      padding: 28px 32px;
+      box-shadow: 0 24px 60px rgba(37, 99, 235, 0.22);
+      margin-bottom: 18px;
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .brand {
+      font-size: 14px;
+      letter-spacing: 2px;
+      opacity: 0.88;
+      margin-bottom: 8px;
+    }
+
+    .main-title {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .sub-title {
+      margin-top: 10px;
+      font-size: 15px;
+      line-height: 1.8;
+      opacity: 0.95;
+    }
+
+    .meta-box {
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.18);
+      padding: 16px 18px;
+      border-radius: 18px;
+      min-width: 260px;
+      backdrop-filter: blur(4px);
+    }
+
+    .meta-box div {
+      margin: 6px 0;
+      font-size: 15px;
+    }
+
+    .toolbar {
+      width: 100%;
+      max-width: 1400px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.9);
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      margin-bottom: 18px;
+    }
+
+    .toolbar button {
+      border: none;
+      background: #2563eb;
+      color: white;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .toolbar button:hover {
+      background: #1d4ed8;
+    }
+
+    .toolbar button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    .toolbar .info {
+      font-size: 15px;
+      font-weight: 700;
+      min-width: 220px;
+      text-align: center;
+      color: #1f2937;
+    }
+
+    .book-shell {
+      width: 100%;
+      max-width: 1400px;
+      background: linear-gradient(180deg, #bfc9d6, #8fa0b5);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: 0 30px 65px rgba(0,0,0,0.16);
+    }
+
+    .book {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 0;
+      background: #a8b4c3;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.22);
+    }
+
+    .page {
+      width: 50%;
+      min-height: 420px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: auto;
+      padding: 12px;
+      position: relative;
+    }
+
+    .page.left {
+      border-right: 4px solid rgba(120,120,120,0.22);
+      box-shadow: inset -12px 0 22px rgba(0,0,0,0.06);
+    }
+
+    .page.right {
+      box-shadow: inset 12px 0 22px rgba(0,0,0,0.06);
+    }
+
+    .page.empty {
+      background: linear-gradient(135deg, #eef2f7, #dde4ec);
+      color: #94a3b8;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    canvas {
+      display: block;
+      background: white;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.14);
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+
+    .footer-note {
+      width: 100%;
+      max-width: 1400px;
+      margin-top: 14px;
+      text-align: center;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .error-box {
+      width: 100%;
+      max-width: 1000px;
+      background: #fff1f2;
+      color: #9f1239;
+      border: 1px solid #fecdd3;
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .header-card {
+        padding: 22px 20px;
+      }
+
+      .main-title {
+        font-size: 24px;
+      }
+
+      .book {
+        flex-direction: column;
+      }
+
+      .page {
+        width: 100%;
+      }
+
+      .page.left {
+        border-right: none;
+        border-bottom: 4px solid rgba(120,120,120,0.22);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="header-card">
+      <div class="header-top">
+        <div>
+          <div class="brand">PERSONAL INSURANCE REPORT</div>
+          <h1 class="main-title" id="reportTitle">專屬保單彙總書</h1>
+          <div class="sub-title" id="reportSubtitle">
+            將保單資料整理成清楚、易讀、可翻閱的展示版本，<br>
+            方便顧問與客戶進行保障說明與後續規劃。
+          </div>
+        </div>
+
+        <div class="meta-box">
+          <div><strong>客戶姓名：</strong><span id="customerName"></span></div>
+          <div><strong>服務顧問：</strong><span id="advisorName"></span></div>
+          <div><strong>報告名稱：</strong><span id="reportName"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <button id="prevBtn">上一組</button>
+      <div class="info" id="pageInfo">載入中...</div>
+      <button id="nextBtn">下一組</button>
+    </div>
+
+    <div class="book-shell">
+      <div class="book">
+        <div class="page left" id="leftPage"></div>
+        <div class="page right" id="rightPage"></div>
+      </div>
+    </div>
+
+    <div class="footer-note" id="footerNote">
+      電腦可用鍵盤 ← → 翻頁。<br>
+      本頁僅供展示用途，詳細保障內容仍以保單條款與保單正本為準。
+    </div>
+  </div>
+
+  <script>
+    // 預設值：當網址沒有帶參數時，就用這組
+    const defaultConfig = {
+      pdfFile: './pdf/何秦嫻_神助理.pdf',
+      customerName: '神助理',
+      advisorName: '何秦嫻',
+      reportTitle: '專屬保單彙總書',
+      reportName: '保單分析式彙總',
+      reportSubtitle: '將保單資料整理成清楚、易讀、可翻閱的展示版本，<br>方便顧問與客戶進行保障說明與後續規劃。',
+      footerNote: '電腦可用鍵盤 ← → 翻頁。<br>本頁僅供展示用途，詳細保障內容仍以保單條款與保單正本為準。'
+    };
+
+    function getUrlConfig() {
+      const params = new URLSearchParams(window.location.search);
+
+      const pdfParam = params.get('pdf');
+      const nameParam = params.get('name');
+      const advisorParam = params.get('advisor');
+      const titleParam = params.get('title');
+      const reportNameParam = params.get('report');
+      const subtitleParam = params.get('subtitle');
+
+      return {
+        pdfFile: pdfParam ? `./pdf/${pdfParam}` : defaultConfig.pdfFile,
+        customerName: nameParam || defaultConfig.customerName,
+        advisorName: advisorParam || defaultConfig.advisorName,
+        reportTitle: titleParam || defaultConfig.reportTitle,
+        reportName: reportNameParam || defaultConfig.reportName,
+        reportSubtitle: subtitleParam || defaultConfig.reportSubtitle,
+        footerNote: defaultConfig.footerNote
+      };
+    }
+
+    const config = getUrlConfig();
+
+    document.title = config.reportTitle;
+    document.getElementById('reportTitle').innerHTML = config.reportTitle;
+    document.getElementById('reportSubtitle').innerHTML = config.reportSubtitle;
+    document.getElementById('customerName').textContent = config.customerName;
+    document.getElementById('advisorName').textContent = config.advisorName;
+    document.getElementById('reportName').textContent = config.reportName;
+    document.getElementById('footerNote').innerHTML = config.footerNote;
+
+    const pdfUrl = config.pdfFile;
+
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const pageInfo = document.getElementById('pageInfo');
+    const leftPage = document.getElementById('leftPage');
+    const rightPage = document.getElementById('rightPage');
+    const errorBox = document.getElementById('errorBox');
+
+    let pdfDoc = null;
+    let currentSpreadStart = 1;
+
+    function showError(message) {
+      errorBox.style.display = 'block';
+      errorBox.innerHTML = message;
+    }
+
+    async function loadPdf() {
+      try {
+        pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+        renderSpread(currentSpreadStart);
+      } catch (error) {
+        pageInfo.textContent = 'PDF 載入失敗';
+        showError(`PDF 載入失敗：<strong>${pdfUrl}</strong><br>請確認網址參數 pdf 是否正確，且 PDF 檔案是否真的放在同一資料夾。`);
+        console.error(error);
+      }
+    }
+
+    function clearPage(el) {
+      el.innerHTML = '';
+      el.classList.remove('empty');
+    }
+
+    function setEmptyPage(el, text = '空白頁') {
+      el.innerHTML = text;
+      el.classList.add('empty');
+    }
+
+    async function renderSinglePage(pageNumber, container) {
+      clearPage(container);
+
+      if (pageNumber > pdfDoc.numPages) {
+        setEmptyPage(container);
+        return;
+      }
+
+      const page = await pdfDoc.getPage(pageNumber);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const containerWidth = container.clientWidth - 24;
+      const unscaledViewport = page.getViewport({ scale: 1 });
+      const scale = containerWidth / unscaledViewport.width;
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      container.appendChild(canvas);
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport
+      }).promise;
+    }
+
+    async function renderSpread(startPage) {
+      if (!pdfDoc) return;
+
+      const leftNumber = startPage;
+      const rightNumber = startPage + 1;
+
+      await Promise.all([
+        renderSinglePage(leftNumber, leftPage),
+        renderSinglePage(rightNumber, rightPage)
+      ]);
+
+      if (rightNumber <= pdfDoc.numPages) {
+        pageInfo.textContent = `第 ${leftNumber} - ${rightNumber} 頁 / 共 ${pdfDoc.numPages} 頁`;
+      } else {
+        pageInfo.textContent = `第 ${leftNumber} 頁 / 共 ${pdfDoc.numPages} 頁`;
+      }
+
+      prevBtn.disabled = startPage <= 1;
+      nextBtn.disabled = startPage + 1 >= pdfDoc.numPages;
+    }
+
+    function goPrevSpread() {
+      if (currentSpreadStart <= 1) return;
+      currentSpreadStart = Math.max(1, currentSpreadStart - 2);
+      renderSpread(currentSpreadStart);
+    }
+
+    function goNextSpread() {
+      if (currentSpreadStart + 1 >= pdfDoc.numPages) return;
+      currentSpreadStart += 2;
+      renderSpread(currentSpreadStart);
+    }
+
+    prevBtn.addEventListener('click', goPrevSpread);
+    nextBtn.addEventListener('click', goNextSpread);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') goPrevSpread();
+      if (e.key === 'ArrowRight') goNextSpread();
+    });
+
+    window.addEventListener('resize', () => {
+      if (pdfDoc) renderSpread(currentSpreadStart);
+    });
+
+    loadPdf();
+  </script>
+</body>
+</html>

@@ -396,17 +396,13 @@ if (!liff.isLoggedIn()) {
     }
 
     async function loadFromSheet() {
-      const params = new URLSearchParams(window.location.search);
-      const agent = params.get('agent') || DEFAULT_AGENT;
+const params = new URLSearchParams(window.location.search);
+const agent = params.get('agent');
 
-      config.agentId = agent;
-      applyConfigToPage();
-
-      try {
-        const userId = await getLineUserId();
-        if (!userId) {
-          return false;
-        }
+if (!agent) {
+  showError('網址缺少 agent 參數，請確認你是從正確的 LIFF 連結進入，例如：?agent=A001');
+  return false;
+}
 
         console.log('userId =', userId);
 

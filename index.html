@@ -272,7 +272,7 @@
   </div>
 
   <script>
-    // ===== 你的正式設定 =====
+    // ===== 固定設定 =====
     const LIFF_ID = '2009663539-GG9GM6pf';
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec';
     const PDF_BASE_PATH = './pdf/';
@@ -329,75 +329,42 @@
       el.classList.add('empty');
     }
 
-    function extractAgentFromAllPlaces() {
+    function extractAgentFromLocation() {
       const tried = [];
 
-      function tryGetFromQueryString(queryString, sourceName) {
-        if (!queryString) return null;
-        try {
-          const qs = queryString.startsWith('?') ? queryString.slice(1) : queryString;
-          const params = new URLSearchParams(qs);
-          const value = params.get('agent');
-          tried.push(`${sourceName}: ${queryString}`);
-          if (value) return value;
-        } catch (e) {}
-        return null;
-      }
-
-      let agent = tryGetFromQueryString(window.location.search, 'window.location.search');
+      // 1. 直接從網址 query 讀
+      const searchParams = new URLSearchParams(window.location.search);
+      let agent = searchParams.get('agent');
+      tried.push(`search: ${window.location.search || '(空)'}`);
       if (agent) return { agent, tried };
 
-      if (window.location.hash) {
-        const hash = window.location.hash.replace(/^#/, '');
-        agent = tryGetFromQueryString(hash, 'window.location.hash');
-        if (agent) return { agent, tried };
-      }
+      // 2. 從 liff.state 讀
+      const liffState = searchParams.get('liff.state');
+      if (liffState) {
+        tried.push(`liff.state: ${liffState}`);
+        try {
+          const decoded = decodeURIComponent(liffState);
 
-      try {
-        const fullUrl = window.location.href;
-        tried.push(`window.location.href: ${fullUrl}`);
-        const match = fullUrl.match(/[?&]agent=([^&#]+)/);
-        if (match && match[1]) {
-          return { agent: decodeURIComponent(match[1]), tried };
-        }
-      } catch (e) {}
-
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const liffState = params.get('liff.state');
-        if (liffState) {
-          tried.push(`liff.state raw: ${liffState}`);
-
-          agent = tryGetFromQueryString(liffState, 'liff.state as query');
+          // 可能是 "?agent=A001"
+          let params = new URLSearchParams(decoded.startsWith('?') ? decoded.slice(1) : decoded);
+          agent = params.get('agent');
           if (agent) return { agent, tried };
 
-          try {
-            const decodedState = decodeURIComponent(liffState);
-            tried.push(`liff.state decoded: ${decodedState}`);
-
-            const match = decodedState.match(/[?&]agent=([^&#]+)/);
-            if (match && match[1]) {
-              return { agent: decodeURIComponent(match[1]), tried };
-            }
-
-            agent = tryGetFromQueryString(decodedState, 'decoded liff.state');
-            if (agent) return { agent, tried };
-          } catch (e) {}
-        }
-      } catch (e) {}
-
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const liffReferrer = params.get('liff.referrer');
-        if (liffReferrer) {
-          tried.push(`liff.referrer: ${liffReferrer}`);
-          const decodedRef = decodeURIComponent(liffReferrer);
-          const match = decodedRef.match(/[?&]agent=([^&#]+)/);
+          // 可能是完整網址
+          const match = decoded.match(/[?&]agent=([^&#]+)/);
           if (match && match[1]) {
             return { agent: decodeURIComponent(match[1]), tried };
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      }
+
+      // 3. 從整個 href 硬抓
+      const fullHref = window.location.href;
+      tried.push(`href: ${fullHref}`);
+      const match = fullHref.match(/[?&]agent=([^&#]+)/);
+      if (match && match[1]) {
+        return { agent: decodeURIComponent(match[1]), tried };
+      }
 
       return { agent: null, tried };
     }
@@ -482,15 +449,16 @@
 
       if (!liff.isLoggedIn()) {
         const redirectUri = `${window.location.origin}${window.location.pathname}?agent=${encodeURIComponent(agent)}`;
+        showError('正在導向 LINE 登入，請稍候，登入完成後會自動回到此頁。');
         liff.login({ redirectUri });
-        return null;
+        return { status: 'logging_in', userId: null };
       }
 
       const decoded = liff.getDecodedIDToken();
       console.log('decoded ID token =', decoded);
 
       if (decoded && decoded.sub) {
-        return decoded.sub;
+        return { status: 'ok', userId: decoded.sub };
       }
 
       try {
@@ -498,7 +466,7 @@
         console.log('profile =', profile);
 
         if (profile && profile.userId) {
-          return profile.userId;
+          return { status: 'ok', userId: profile.userId };
         }
       } catch (e) {
         console.error('getProfile 失敗 =', e);
@@ -509,7 +477,7 @@
 
     async function loadFromSheet() {
       try {
-        const result = extractAgentFromAllPlaces();
+        const result = extractAgentFromLocation();
         const agent = result.agent;
 
         if (!agent) {
@@ -524,12 +492,13 @@
         config.agentId = agent;
         applyConfigToPage();
 
-        const userId = await getLineUserId(agent);
+        const lineResult = await getLineUserId(agent);
 
-        if (!userId) {
+        if (!lineResult || lineResult.status === 'logging_in') {
           return false;
         }
 
+        const userId = lineResult.userId;
         console.log('userId =', userId);
 
         const apiUrl = `${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`;
@@ -608,9 +577,13 @@
     async function initPage() {
       applyConfigToPage();
       const ok = await loadFromSheet();
+
       if (ok) {
         await loadPdf();
       } else {
+        if (!errorBox.innerHTML) {
+          showError('尚未取得客戶資料，請重新從 LINE 的 LIFF 連結進入一次。');
+        }
         pageInfo.textContent = '尚未載入 PDF';
       }
     }

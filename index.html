@@ -271,15 +271,9 @@
   </div>
 
   <script>
-    // =========================
-    // 只改這 2 個地方
-    // =========================
     const LIFF_ID = '2009625468-l1pRV9me';
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec';
 
-    // =========================
-    // 預設值：查不到資料時用來顯示
-    // =========================
     const defaultConfig = {
       agentId: 'A001',
       pdfFile: './pdf/蔡淑惠-分析式.pdf',
@@ -421,12 +415,12 @@
       config.agentId = agent;
       applyConfigToPage();
 
-      if (!LIFF_ID || LIFF_ID === '2009625468-l1pRV9me') {
+      if (!LIFF_ID) {
         showError('請先在 index.html 內填入正確的 <strong>LIFF_ID</strong>。');
         return false;
       }
 
-      if (!GAS_URL || GAS_URL === 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec') {
+      if (!GAS_URL) {
         showError('請先在 index.html 內填入正確的 <strong>GAS_URL</strong>。');
         return false;
       }

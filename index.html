@@ -496,9 +496,10 @@
         const apiUrl = `${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`;
         console.log('GAS API =', apiUrl);
 
-        const res = await fetch(apiUrl);
-        const rawText = await res.text();
-        console.log('GAS raw response =', rawText);
+const res = await fetch(apiUrl);
+const rawText = await res.text();
+console.log('GAS raw response =', rawText);
+showError(`GAS 回傳內容：<br><strong>${rawText}</strong>`);
 
         let data;
         try {

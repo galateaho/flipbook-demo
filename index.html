@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>專屬保單彙總書</title>
@@ -301,35 +302,50 @@
         footerNote: defaultConfig.footerNote
       };
     }
+const LIFF_ID = '2009625468-l1pRV9me';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec';
+const config = getUrlConfig();
 
-    const config = getUrlConfig();
-const GAS_URL = "你的GAS網址";
 
 async function loadFromSheet() {
   const params = new URLSearchParams(window.location.search);
   const agent = params.get("agent");
 
-  if (!agent) return;
+  if (!agent) {
+    showError('網址缺少 agent 參數。');
+    return;
+  }
 
   try {
-    const res = await fetch(`${GAS_URL}?agent=${agent}`);
+    await liff.init({ liffId: LIFF_ID });
+
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+
+    const profile = await liff.getProfile();
+    const userId = profile.userId;
+
+    const res = await fetch(`${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`);
     const data = await res.json();
 
     if (data.status === "ok") {
+      config.agentId = agent;
       config.customerName = data.name;
       config.advisorName = data.advisor;
       config.pdfFile = `./pdf/${data.pdf}`;
 
+      document.getElementById('agentId').textContent = config.agentId;
       document.getElementById('customerName').textContent = config.customerName;
       document.getElementById('advisorName').textContent = config.advisorName;
     } else {
-      alert("查無此業務員資料");
+      showError('查無對應客戶資料，請確認 LINE_userId 是否已正確綁定。');
     }
   } catch (err) {
     console.error(err);
-    alert("讀取資料失敗");
+    showError('讀取 LINE 或客戶資料失敗，請確認 LIFF ID、GAS 網址與部署權限是否正確。');
   }
-}
 
     document.title = config.reportTitle;
     document.getElementById('reportTitle').innerHTML = config.reportTitle;

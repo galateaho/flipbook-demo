@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>專屬保單彙總書</title>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
   <style>
     * { box-sizing: border-box; }
 
@@ -22,6 +24,19 @@
       flex-direction: column;
       align-items: center;
       padding: 28px 16px 40px;
+    }
+
+    .error-box {
+      width: 100%;
+      max-width: 1000px;
+      background: #fff1f2;
+      color: #9f1239;
+      border: 1px solid #fecdd3;
+      border-radius: 16px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+      display: none;
+      line-height: 1.7;
     }
 
     .header-card {
@@ -69,7 +84,7 @@
       border: 1px solid rgba(255,255,255,0.18);
       padding: 16px 18px;
       border-radius: 18px;
-      min-width: 260px;
+      min-width: 280px;
       backdrop-filter: blur(4px);
     }
 
@@ -188,18 +203,6 @@
       line-height: 1.8;
     }
 
-    .error-box {
-      width: 100%;
-      max-width: 1000px;
-      background: #fff1f2;
-      color: #9f1239;
-      border: 1px solid #fecdd3;
-      border-radius: 16px;
-      padding: 16px 18px;
-      margin-bottom: 18px;
-      display: none;
-    }
-
     @media (max-width: 900px) {
       .header-card {
         padding: 22px 20px;
@@ -268,95 +271,27 @@
   </div>
 
   <script>
-    // 預設值：當網址沒有帶參數時，就用這組
+    // =========================
+    // 只改這 2 個地方
+    // =========================
+    const LIFF_ID = '請改成你的LIFF_ID';
+    const GAS_URL = '請改成你的GAS網址';
+
+    // =========================
+    // 預設值：查不到資料時用來顯示
+    // =========================
     const defaultConfig = {
       agentId: 'A001',
-      pdfFile: './pdf/何秦嫻_神助理.pdf',
-      customerName: '神助理',
-      advisorName: '何秦嫻',
+      pdfFile: './pdf/蔡淑惠-分析式.pdf',
+      customerName: '蔡淑惠',
+      advisorName: '神助理示範版',
       reportTitle: '專屬保單彙總書',
       reportName: '保單分析式彙總',
       reportSubtitle: '將保單資料整理成清楚、易讀、可翻閱的展示版本，<br>方便顧問與客戶進行保障說明與後續規劃。',
       footerNote: '電腦可用鍵盤 ← → 翻頁。<br>本頁僅供展示用途，詳細保障內容仍以保單條款與保單正本為準。'
     };
 
-    function getUrlConfig() {
-      const params = new URLSearchParams(window.location.search);
-
-      const agentParam = params.get('agent');      
-      const pdfParam = params.get('pdf');
-      const nameParam = params.get('name');
-      const advisorParam = params.get('advisor');
-      const titleParam = params.get('title');
-      const reportNameParam = params.get('report');
-      const subtitleParam = params.get('subtitle');
-
-      return {
-        agentId: agentParam || defaultConfig.agentId,
-        pdfFile: pdfParam ? `./pdf/${pdfParam}` : defaultConfig.pdfFile,
-        customerName: nameParam || defaultConfig.customerName,
-        advisorName: advisorParam || defaultConfig.advisorName,
-        reportTitle: titleParam || defaultConfig.reportTitle,
-        reportName: reportNameParam || defaultConfig.reportName,
-        reportSubtitle: subtitleParam || defaultConfig.reportSubtitle,
-        footerNote: defaultConfig.footerNote
-      };
-    }
-const LIFF_ID = '2009625468-l1pRV9me';
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec';
-const config = getUrlConfig();
-
-
-async function loadFromSheet() {
-  const params = new URLSearchParams(window.location.search);
-  const agent = params.get("agent");
-
-  if (!agent) {
-    showError('網址缺少 agent 參數。');
-    return;
-  }
-
-  try {
-    await liff.init({ liffId: LIFF_ID });
-
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
-
-    const profile = await liff.getProfile();
-    const userId = profile.userId;
-
-    const res = await fetch(`${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`);
-    const data = await res.json();
-
-    if (data.status === "ok") {
-      config.agentId = agent;
-      config.customerName = data.name;
-      config.advisorName = data.advisor;
-      config.pdfFile = `./pdf/${data.pdf}`;
-
-      document.getElementById('agentId').textContent = config.agentId;
-      document.getElementById('customerName').textContent = config.customerName;
-      document.getElementById('advisorName').textContent = config.advisorName;
-    } else {
-      showError('查無對應客戶資料，請確認 LINE_userId 是否已正確綁定。');
-    }
-  } catch (err) {
-    console.error(err);
-    showError('讀取 LINE 或客戶資料失敗，請確認 LIFF ID、GAS 網址與部署權限是否正確。');
-  }
-
-    document.title = config.reportTitle;
-    document.getElementById('reportTitle').innerHTML = config.reportTitle;
-    document.getElementById('reportSubtitle').innerHTML = config.reportSubtitle;
-    document.getElementById('agentId').textContent = config.agentId;
-    document.getElementById('customerName').textContent = config.customerName;
-    document.getElementById('advisorName').textContent = config.advisorName;
-    document.getElementById('reportName').textContent = config.reportName;
-    document.getElementById('footerNote').innerHTML = config.footerNote;
-
-    const pdfUrl = config.pdfFile;
+    const config = { ...defaultConfig };
 
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -368,20 +303,25 @@ async function loadFromSheet() {
     let pdfDoc = null;
     let currentSpreadStart = 1;
 
+    function applyConfigToPage() {
+      document.title = config.reportTitle;
+      document.getElementById('reportTitle').innerHTML = config.reportTitle;
+      document.getElementById('reportSubtitle').innerHTML = config.reportSubtitle;
+      document.getElementById('agentId').textContent = config.agentId || '';
+      document.getElementById('customerName').textContent = config.customerName || '';
+      document.getElementById('advisorName').textContent = config.advisorName || '';
+      document.getElementById('reportName').textContent = config.reportName || '';
+      document.getElementById('footerNote').innerHTML = config.footerNote || '';
+    }
+
     function showError(message) {
       errorBox.style.display = 'block';
       errorBox.innerHTML = message;
     }
 
-    async function loadPdf() {
-      try {
-        pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
-        renderSpread(currentSpreadStart);
-      } catch (error) {
-        pageInfo.textContent = 'PDF 載入失敗';
-        showError(`PDF 載入失敗：<strong>${pdfUrl}</strong><br>請確認網址參數 pdf 是否正確，且 PDF 檔案是否真的放在同一資料夾。`);
-        console.error(error);
-      }
+    function hideError() {
+      errorBox.style.display = 'none';
+      errorBox.innerHTML = '';
     }
 
     function clearPage(el) {
@@ -455,6 +395,89 @@ async function loadFromSheet() {
       renderSpread(currentSpreadStart);
     }
 
+    async function loadPdf() {
+      try {
+        pdfDoc = await pdfjsLib.getDocument(config.pdfFile).promise;
+        await renderSpread(currentSpreadStart);
+      } catch (error) {
+        pageInfo.textContent = 'PDF 載入失敗';
+        showError(
+          `PDF 載入失敗：<strong>${config.pdfFile}</strong><br>` +
+          `請確認 PDF 是否存在於 <strong>pdf</strong> 資料夾內，且檔名完全一致。`
+        );
+        console.error(error);
+      }
+    }
+
+    async function loadFromSheet() {
+      const params = new URLSearchParams(window.location.search);
+      const agent = params.get('agent');
+
+      if (!agent) {
+        showError('網址缺少 <strong>agent</strong> 參數，例如：<br>?agent=A001');
+        return false;
+      }
+
+      config.agentId = agent;
+      applyConfigToPage();
+
+      if (!LIFF_ID || LIFF_ID === '2009625468-l1pRV9me') {
+        showError('請先在 index.html 內填入正確的 <strong>LIFF_ID</strong>。');
+        return false;
+      }
+
+      if (!GAS_URL || GAS_URL === 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec') {
+        showError('請先在 index.html 內填入正確的 <strong>GAS_URL</strong>。');
+        return false;
+      }
+
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return false;
+        }
+
+        const profile = await liff.getProfile();
+        const userId = profile.userId;
+
+        const apiUrl = `${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+          config.customerName = data.name;
+          config.advisorName = data.advisor;
+          config.pdfFile = `./pdf/${data.pdf}`;
+
+          hideError();
+          applyConfigToPage();
+          return true;
+        } else if (data.status === 'missing_parameter') {
+          showError('GAS 回傳缺少參數，請確認網址是否帶有 <strong>agent</strong>。');
+          return false;
+        } else {
+          showError(
+            '查無對應客戶資料。<br>' +
+            '請確認 Google Sheet 內的 <strong>agent</strong> 與 <strong>LINE_userId</strong> 是否正確。'
+          );
+          return false;
+        }
+      } catch (err) {
+        console.error(err);
+        showError(
+          '讀取 LINE 或客戶資料失敗。<br>' +
+          '請檢查以下 4 件事：<br>' +
+          '1. LIFF_ID 是否正確<br>' +
+          '2. GAS_URL 是否正確<br>' +
+          '3. GAS 是否重新部署<br>' +
+          '4. LINE 裡是否真的以 LIFF 方式開啟這個網址'
+        );
+        return false;
+      }
+    }
+
     prevBtn.addEventListener('click', goPrevSpread);
     nextBtn.addEventListener('click', goNextSpread);
 
@@ -467,8 +490,17 @@ async function loadFromSheet() {
       if (pdfDoc) renderSpread(currentSpreadStart);
     });
 
-loadFromSheet().then(() => {
-    loadPdf();
+    async function initPage() {
+      applyConfigToPage();
+      const ok = await loadFromSheet();
+      if (ok) {
+        await loadPdf();
+      } else {
+        pageInfo.textContent = '尚未載入 PDF';
+      }
+    }
+
+    initPage();
   </script>
 </body>
 </html>

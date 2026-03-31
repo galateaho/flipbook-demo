@@ -394,14 +394,129 @@
       throw new Error('無法取得 LINE 使用者識別，請確認 LIFF app 是否勾選 openid 與 profile scope。');
     }
 
-    async function loadFromSheet() {
-      const params = new URLSearchParams(window.location.search);
-      const agent = params.get('agent');
+async function loadFromSheet() {
+  let agent = null;
 
-      if (!agent) {
-        showError('網址缺少 agent 參數，請確認你是從正確的 LIFF 連結進入，例如：?agent=A001');
-        return false;
+  try {
+    await liff.init({ liffId: LIFF_ID });
+
+    // 先從一般 query 取 agent
+    let params = new URLSearchParams(window.location.search);
+    agent = params.get('agent');
+
+    // 如果沒有，再從 liff.state 裡取
+    if (!agent) {
+      const liffState = params.get('liff.state');
+
+      if (liffState) {
+        const stateParams = new URLSearchParams(liffState);
+        agent = stateParams.get('agent');
+
+        // 把網址整理回正常樣子，避免後面又抓不到
+        if (agent) {
+          const cleanUrl = `${window.location.origin}${window.location.pathname}?agent=${encodeURIComponent(agent)}`;
+          window.history.replaceState({}, '', cleanUrl);
+        }
       }
+    }
+
+    if (!agent) {
+      showError('網址缺少 agent 參數，請確認 LIFF 連結是否正確。');
+      return false;
+    }
+
+    config.agentId = agent;
+    applyConfigToPage();
+
+    if (!liff.isLoggedIn()) {
+      const redirectUri = `${window.location.origin}${window.location.pathname}?agent=${encodeURIComponent(agent)}`;
+      liff.login({ redirectUri });
+      return false;
+    }
+
+    let userId = null;
+
+    const decoded = liff.getDecodedIDToken();
+    console.log('decoded ID token =', decoded);
+
+    if (decoded && decoded.sub) {
+      userId = decoded.sub;
+    } else {
+      const profile = await liff.getProfile();
+      console.log('profile =', profile);
+
+      if (profile && profile.userId) {
+        userId = profile.userId;
+      }
+    }
+
+    if (!userId) {
+      showError('無法取得 LINE 使用者識別，請確認 LIFF app 是否勾選 openid 與 profile scope。');
+      return false;
+    }
+
+    console.log('userId =', userId);
+
+    const apiUrl = `${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`;
+    console.log('GAS API =', apiUrl);
+
+    const res = await fetch(apiUrl);
+    const rawText = await res.text();
+    console.log('GAS raw response =', rawText);
+
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseError) {
+      showError(
+        'GAS 回傳的不是 JSON。<br>' +
+        '這通常表示 GAS 權限、部署版本或工作表設定有問題。<br><br>' +
+        `<strong>原始回傳：</strong><br>${rawText}`
+      );
+      return false;
+    }
+
+    if (data.status === 'ok') {
+      config.customerName = data.name || '';
+      config.advisorName = data.advisor || '';
+      config.pdfFile = `${PDF_BASE_PATH}${data.pdf}`;
+
+      hideError();
+      applyConfigToPage();
+      return true;
+    }
+
+    if (data.status === 'sheet_not_found') {
+      showError('找不到工作表，請確認 Apps Script 使用的是 <strong>神助理會員</strong>。');
+      return false;
+    }
+
+    if (data.status === 'missing_parameter') {
+      showError('GAS 回傳缺少參數。');
+      return false;
+    }
+
+    if (data.status === 'not_found') {
+      showError(
+        '查無對應客戶資料。<br>' +
+        '請確認 Google Sheet 的欄位順序是否為：<br>' +
+        'A欄 agent / B欄 客戶姓名 / C欄 LINE_userId / D欄 PDF檔名 / E欄 顧問名稱'
+      );
+      return false;
+    }
+
+    showError(`未知的 GAS 回傳：<br><strong>${rawText}</strong>`);
+    return false;
+
+  } catch (err) {
+    console.error('實際錯誤 =', err);
+    showError(
+      '讀取 LINE 或客戶資料失敗。<br><br>' +
+      `錯誤訊息：<strong>${err && err.message ? err.message : '未知錯誤'}</strong>`
+    );
+    return false;
+  }
+}
 
       config.agentId = agent;
       applyConfigToPage();

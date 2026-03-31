@@ -513,15 +513,20 @@ showError(`GAS 回傳內容：<br><strong>${rawText}</strong>`);
           return false;
         }
 
-        if (data.status === 'ok') {
-          config.customerName = data.name || '';
-          config.advisorName = data.advisor || '';
-          config.pdfUrl = data.pdfUrl || '';
+if (data.status === 'ok') {
+  config.customerName = data.name || '';
+  config.advisorName = data.advisor || '';
+  config.pdfUrl = data.pdfUrl || '';
 
-          hideError();
-          applyConfigToPage();
-          return true;
-        }
+  applyConfigToPage();
+  showError(
+    'GAS 有找到資料。<br><br>' +
+    `客戶姓名：<strong>${config.customerName}</strong><br>` +
+    `顧問名稱：<strong>${config.advisorName}</strong><br>` +
+    `PDF 連結：<strong>${config.pdfUrl}</strong>`
+  );
+  return true;
+}
 
         if (data.status === 'sheet_not_found') {
           showError('找不到工作表，請確認 Apps Script 使用的是 <strong>神助理會員</strong>。');

@@ -272,14 +272,12 @@
   </div>
 
   <script>
-    // ===== 固定設定 =====
     const LIFF_ID = '2009663539-GG9GM6pf';
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbzw1CiWxEqBWdPOr52SkdQCbZmRmVAZixeI0kbAvEWhr1JaKAXoPvAtavKSgGiuWFZU_Q/exec';
-    const PDF_BASE_PATH = './pdf/';
 
     const config = {
       agentId: '',
-      pdfFile: '',
+      pdfUrl: '',
       customerName: '',
       advisorName: '',
       reportTitle: '專屬保單彙總書',
@@ -332,25 +330,20 @@
     function extractAgentFromLocation() {
       const tried = [];
 
-      // 1. 直接從網址 query 讀
       const searchParams = new URLSearchParams(window.location.search);
       let agent = searchParams.get('agent');
       tried.push(`search: ${window.location.search || '(空)'}`);
       if (agent) return { agent, tried };
 
-      // 2. 從 liff.state 讀
       const liffState = searchParams.get('liff.state');
       if (liffState) {
         tried.push(`liff.state: ${liffState}`);
         try {
           const decoded = decodeURIComponent(liffState);
-
-          // 可能是 "?agent=A001"
           let params = new URLSearchParams(decoded.startsWith('?') ? decoded.slice(1) : decoded);
           agent = params.get('agent');
           if (agent) return { agent, tried };
 
-          // 可能是完整網址
           const match = decoded.match(/[?&]agent=([^&#]+)/);
           if (match && match[1]) {
             return { agent: decodeURIComponent(match[1]), tried };
@@ -358,7 +351,6 @@
         } catch (e) {}
       }
 
-      // 3. 從整個 href 硬抓
       const fullHref = window.location.href;
       tried.push(`href: ${fullHref}`);
       const match = fullHref.match(/[?&]agent=([^&#]+)/);
@@ -432,14 +424,14 @@
 
     async function loadPdf() {
       try {
-        pdfDoc = await pdfjsLib.getDocument(config.pdfFile).promise;
+        pdfDoc = await pdfjsLib.getDocument(config.pdfUrl).promise;
         await renderSpread(currentSpreadStart);
       } catch (error) {
         console.error('PDF 載入失敗 =', error);
         pageInfo.textContent = 'PDF 載入失敗';
         showError(
-          `PDF 載入失敗：<strong>${config.pdfFile}</strong><br>` +
-          `請確認 PDF 檔案是否真的放在 <strong>pdf</strong> 資料夾內，且檔名完全一致。`
+          `PDF 載入失敗：<strong>${config.pdfUrl}</strong><br>` +
+          `請確認這個 PDF 連結可直接開啟 PDF 本體，且分享權限允許存取。`
         );
       }
     }
@@ -523,7 +515,7 @@
         if (data.status === 'ok') {
           config.customerName = data.name || '';
           config.advisorName = data.advisor || '';
-          config.pdfFile = `${PDF_BASE_PATH}${data.pdf}`;
+          config.pdfUrl = data.pdfUrl || '';
 
           hideError();
           applyConfigToPage();
@@ -544,7 +536,7 @@
           showError(
             '查無對應客戶資料。<br>' +
             '請確認 Google Sheet 的欄位順序是否為：<br>' +
-            'A欄 agent / B欄 客戶姓名 / C欄 LINE_userId / D欄 PDF檔名 / E欄 顧問名稱'
+            'A欄 agent / B欄 客戶姓名 / C欄 LINE_userId / D欄 PDF連結 / E欄 顧問名稱'
           );
           return false;
         }

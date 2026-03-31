@@ -239,6 +239,7 @@
         </div>
 
         <div class="meta-box">
+          <div><strong>業務員代碼：</strong><span id="agentId"></span></div>
           <div><strong>客戶姓名：</strong><span id="customerName"></span></div>
           <div><strong>服務顧問：</strong><span id="advisorName"></span></div>
           <div><strong>報告名稱：</strong><span id="reportName"></span></div>
@@ -268,6 +269,7 @@
   <script>
     // 預設值：當網址沒有帶參數時，就用這組
     const defaultConfig = {
+      agentId: 'A001',
       pdfFile: './pdf/何秦嫻_神助理.pdf',
       customerName: '神助理',
       advisorName: '何秦嫻',
@@ -280,6 +282,7 @@
     function getUrlConfig() {
       const params = new URLSearchParams(window.location.search);
 
+      const agentParam = params.get('agent');      
       const pdfParam = params.get('pdf');
       const nameParam = params.get('name');
       const advisorParam = params.get('advisor');
@@ -288,6 +291,7 @@
       const subtitleParam = params.get('subtitle');
 
       return {
+        agentId: agentParam || defaultConfig.agentId,
         pdfFile: pdfParam ? `./pdf/${pdfParam}` : defaultConfig.pdfFile,
         customerName: nameParam || defaultConfig.customerName,
         advisorName: advisorParam || defaultConfig.advisorName,
@@ -299,10 +303,38 @@
     }
 
     const config = getUrlConfig();
+const GAS_URL = "你的GAS網址";
+
+async function loadFromSheet() {
+  const params = new URLSearchParams(window.location.search);
+  const agent = params.get("agent");
+
+  if (!agent) return;
+
+  try {
+    const res = await fetch(`${GAS_URL}?agent=${agent}`);
+    const data = await res.json();
+
+    if (data.status === "ok") {
+      config.customerName = data.name;
+      config.advisorName = data.advisor;
+      config.pdfFile = `./pdf/${data.pdf}`;
+
+      document.getElementById('customerName').textContent = config.customerName;
+      document.getElementById('advisorName').textContent = config.advisorName;
+    } else {
+      alert("查無此業務員資料");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("讀取資料失敗");
+  }
+}
 
     document.title = config.reportTitle;
     document.getElementById('reportTitle').innerHTML = config.reportTitle;
     document.getElementById('reportSubtitle').innerHTML = config.reportSubtitle;
+    document.getElementById('agentId').textContent = config.agentId;
     document.getElementById('customerName').textContent = config.customerName;
     document.getElementById('advisorName').textContent = config.advisorName;
     document.getElementById('reportName').textContent = config.reportName;
@@ -419,6 +451,7 @@
       if (pdfDoc) renderSpread(currentSpreadStart);
     });
 
+loadFromSheet().then(() => {
     loadPdf();
   </script>
 </body>

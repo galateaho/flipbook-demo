@@ -372,6 +372,140 @@ if (!liff.isLoggedIn()) {
   showError('目前尚未完成 LINE 登入，系統正在重新登入，請再重新開啟一次此連結。');
   liff.login();
   return null;
+}
+
+      const decoded = liff.getDecodedIDToken();
+      console.log('decoded ID token =', decoded);
+
+      if (decoded && decoded.sub) {
+        return decoded.sub;
       }
 
-      const decoded = liff.getDecoded
+      // 後備方案：若 openid 沒拿到，再試 profile
+      try {
+        const profile = await liff.getProfile();
+        console.log('profile =', profile);
+        if (profile && profile.userId) {
+          return profile.userId;
+        }
+      } catch (profileErr) {
+        console.error('getProfile 失敗 =', profileErr);
+      }
+
+      throw new Error('無法取得 LINE 使用者識別，請確認 LIFF app 是否勾選 openid 與 profile scope。');
+    }
+
+    async function loadFromSheet() {
+      const params = new URLSearchParams(window.location.search);
+      const agent = params.get('agent') || DEFAULT_AGENT;
+
+      config.agentId = agent;
+      applyConfigToPage();
+
+      try {
+        const userId = await getLineUserId();
+        if (!userId) {
+          return false;
+        }
+
+        console.log('userId =', userId);
+
+        const apiUrl = `${GAS_URL}?agent=${encodeURIComponent(agent)}&userId=${encodeURIComponent(userId)}`;
+        console.log('GAS API =', apiUrl);
+
+        const res = await fetch(apiUrl);
+        const rawText = await res.text();
+        console.log('GAS raw response =', rawText);
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch (parseError) {
+          showError(
+            'GAS 回傳的不是 JSON。<br>' +
+            '這通常表示 GAS 權限、部署版本或工作表設定有問題。<br><br>' +
+            `<strong>原始回傳：</strong><br>${rawText}`
+          );
+          return false;
+        }
+
+        if (data.status === 'ok') {
+          config.customerName = data.name || '';
+          config.advisorName = data.advisor || '';
+          config.pdfFile = `${PDF_BASE_PATH}${data.pdf}`;
+
+          hideError();
+          applyConfigToPage();
+          return true;
+        }
+
+        if (data.status === 'sheet_not_found') {
+          showError('找不到工作表，請確認 Apps Script 使用的是 <strong>神助理會員</strong>。');
+          return false;
+        }
+
+        if (data.status === 'missing_parameter') {
+          showError('GAS 回傳缺少參數，請確認網址是否帶有 <strong>agent</strong>。');
+          return false;
+        }
+
+        if (data.status === 'not_found') {
+          showError(
+            '查無對應客戶資料。<br>' +
+            '請確認 Google Sheet 的欄位順序是否為：<br>' +
+            'A欄 agent / B欄 客戶姓名 / C欄 LINE_userId / D欄 PDF檔名 / E欄 顧問名稱<br><br>' +
+            `目前查詢條件：agent = <strong>${agent}</strong>`
+          );
+          return false;
+        }
+
+        showError(`未知的 GAS 回傳：<br><strong>${rawText}</strong>`);
+        return false;
+
+      } catch (err) {
+        console.error('實際錯誤 =', err);
+        showError(
+          '讀取 LINE 或客戶資料失敗。<br><br>' +
+          `錯誤訊息：<strong>${err && err.message ? err.message : '未知錯誤'}</strong><br><br>` +
+          '請檢查：<br>' +
+          '1. LIFF_ID 是否正確<br>' +
+          '2. LIFF app 是否勾選 <strong>openid</strong> 與 <strong>profile</strong> scope<br>' +
+          '3. GAS_URL 是否正確<br>' +
+          '4. GAS 是否重新部署成最新版本<br>' +
+          '5. 工作表名稱是否為 <strong>神助理會員</strong>'
+        );
+        return false;
+      }
+    }
+
+    prevBtn.addEventListener('click', goPrevSpread);
+    nextBtn.addEventListener('click', goNextSpread);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') goPrevSpread();
+      if (e.key === 'ArrowRight') goNextSpread();
+    });
+
+    window.addEventListener('resize', () => {
+      if (pdfDoc) renderSpread(currentSpreadStart);
+    });
+
+async function initPage() {
+  applyConfigToPage();
+  const ok = await loadFromSheet();
+  if (ok) {
+    await loadPdf();
+  } else {
+    if (!errorBox.innerHTML) {
+      pageInfo.textContent = '尚未載入 PDF';
+      showError('尚未取得客戶資料，請再重新從 LINE 入口點開一次。');
+    } else {
+      pageInfo.textContent = '尚未載入 PDF';
+    }
+  }
+}
+
+    initPage();
+  </script>
+</body>
+</html>

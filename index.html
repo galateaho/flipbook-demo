@@ -415,7 +415,8 @@ if (!liff.isLoggedIn()) {
 
         const res = await fetch(apiUrl);
         const rawText = await res.text();
-        console.log('GAS raw response =', rawText);
+console.log('GAS raw response =', rawText);
+showError(`GAS 回傳：<br><strong>${rawText}</strong>`);
 
         let data;
         try {

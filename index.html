@@ -369,8 +369,8 @@
       await liff.init({ liffId: LIFF_ID });
 
 if (!liff.isLoggedIn()) {
-  showError('目前尚未完成 LINE 登入，系統正在重新登入，請再重新開啟一次此連結。');
-  liff.login();
+  const redirectUri = window.location.href;
+  liff.login({ redirectUri });
   return null;
 }
 
